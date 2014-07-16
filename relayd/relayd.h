@@ -395,10 +395,16 @@ struct host {
 	u_long			 up_cnt;
 	int			 retry_cnt;
 	int			 idx;
+	u_int32_t		 ringkey;
 	u_int16_t		 he;
 	struct ctl_tcp_event	 cte;
 };
 TAILQ_HEAD(hostlist, host);
+
+struct host_ring {
+	struct host	*host;
+	u_int32_t	 ringkey;
+};
 
 enum host_error {
 	HCE_NONE		= 0,
@@ -470,6 +476,9 @@ struct table {
 	int			 up;
 	int			 skipped;
 	struct hostlist		 hosts;
+	struct host_ring	 hostring[RELAY_MAXHOSTS];
+	int			 nhosts;
+	int			 lastup;
 	SSL_CTX			*ssl_ctx;
 	char			*sendbuf;
 };
@@ -774,6 +783,7 @@ enum dstmode {
 	RELAY_DSTMODE_LOADBALANCE = 0,
 	RELAY_DSTMODE_ROUNDROBIN,
 	RELAY_DSTMODE_HASH,
+	RELAY_DSTMODE_HOSTRING,
 	RELAY_DSTMODE_SRCHASH,
 	RELAY_DSTMODE_LEASTSTATES,
 	RELAY_DSTMODE_RANDOM

@@ -1,0 +1,18 @@
+www1=192.168.1.131
+www2=192.168.1.132
+www3=192.168.1.133
+www4=192.168.1.134
+www5=192.168.1.135
+www6=192.168.1.136
+table <phphosts> { $www1, $www2, $www3, $www4, $www5, $www6 }
+
+http protocol "http_hostring" {
+	tcp no splice
+	query hash "sessid" log
+}
+
+relay "hostring" {
+	listen on 192.168.1.101 port 80
+	protocol "http_hostring"
+	forward to <phphosts> port 8080 mode hostring check tcp
+}

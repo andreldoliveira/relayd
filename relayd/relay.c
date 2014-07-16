@@ -87,6 +87,11 @@ void		 relay_ssl_readcb(int, short, void *);
 void		 relay_ssl_writecb(int, short, void *);
 
 char		*relay_load_file(const char *, off_t *);
+int		 relay_hostring_lookup(u_int32_t, struct table *);
+void		 relay_hostring_update(struct table *);
+u_int32_t	 relay_hostring_hash(u_int32_t);
+static __inline int
+		 relay_hostring_cmp(const void *, const void *);
 extern void	 bufferevent_read_pressure_cb(struct evbuffer *, size_t,
 		    size_t, void *);
 
@@ -436,6 +441,9 @@ relay_launch(void)
 				    hash32_str(rlt->rlt_table->conf.name,
 				    rlt->rlt_key);
 				break;
+			case RELAY_DSTMODE_HOSTRING:
+				rlt->rlt_key = HASHINIT;
+				break;
 			}
 			rlt->rlt_nhosts = 0;
 			TAILQ_FOREACH(host, &rlt->rlt_table->hosts, entry) {
@@ -444,6 +452,13 @@ relay_launch(void)
 					    "too many hosts in table");
 				host->idx = rlt->rlt_nhosts;
 				rlt->rlt_host[rlt->rlt_nhosts++] = host;
+				if (rlt->rlt_mode == RELAY_DSTMODE_HOSTRING) {
+					host->ringkey =
+					    relay_hash_addr(&host->conf.ss,
+					    host->idx);
+					host->ringkey =
+					    relay_hostring_hash(host->ringkey);
+				}
 			}
 			log_info("adding %d hosts from table %s%s",
 			    rlt->rlt_nhosts, rlt->rlt_table->conf.name,
@@ -1231,6 +1246,10 @@ relay_from_table(struct rsession *con)
 	case RELAY_DSTMODE_RANDOM:
 		idx = (int)arc4random_uniform(rlt->rlt_nhosts);
 		break;
+	case RELAY_DSTMODE_HOSTRING:
+		p = relay_hostring_hash(p);
+		idx = relay_hostring_lookup(p, table);
+		break;
 	case RELAY_DSTMODE_SRCHASH:
 	case RELAY_DSTMODE_LOADBALANCE:
 		/* Source IP address without port */
@@ -1698,6 +1717,7 @@ relay_dispatch_pfe(int fd, struct privsep_proc *p, struct imsg *imsg)
 			table->up--;
 		host->flags |= F_DISABLE;
 		host->up = HOST_UNKNOWN;
+		relay_hostring_update(table);
 		break;
 	case IMSG_HOST_ENABLE:
 		memcpy(&id, imsg->data, sizeof(id));
@@ -1714,6 +1734,7 @@ relay_dispatch_pfe(int fd, struct privsep_proc *p, struct imsg *imsg)
 		table->up = 0;
 		TAILQ_FOREACH(host, &table->hosts, entry)
 			host->up = HOST_UNKNOWN;
+		relay_hostring_update(table);
 		break;
 	case IMSG_TABLE_ENABLE:
 		memcpy(&id, imsg->data, sizeof(id));
@@ -1723,6 +1744,7 @@ relay_dispatch_pfe(int fd, struct privsep_proc *p, struct imsg *imsg)
 		table->up = 0;
 		TAILQ_FOREACH(host, &table->hosts, entry)
 			host->up = HOST_UNKNOWN;
+		relay_hostring_update(table);
 		break;
 	case IMSG_HOST_STATUS:
 		IMSG_SIZE_CHECK(imsg, &st);
@@ -1755,6 +1777,7 @@ relay_dispatch_pfe(int fd, struct privsep_proc *p, struct imsg *imsg)
 		else
 			table->up--;
 		host->up = st.up;
+		relay_hostring_update(table);
 		break;
 	case IMSG_NATLOOK:
 		bcopy(imsg->data, &cnl, sizeof(cnl));
@@ -2647,6 +2670,102 @@ relay_load_certfiles(struct relay *rlay)
 	log_debug("%s: using private key %s", __func__, certfile);
 
 	return (0);
+}
+
+static __inline int
+relay_hostring_cmp(const void *aa, const void *bb)
+{
+	const struct host_ring *a = aa;
+	const struct host_ring *b = bb;
+	if (a->ringkey < b->ringkey)
+		return (-1);
+	else if (a->ringkey > b->ringkey)
+		return (1);
+	else
+		return (0);
+}
+
+int
+relay_hostring_lookup(u_int32_t dstkey, struct table *table)
+{
+	struct host_ring *r;
+	int		  n = table->nhosts;
+
+	if (!table->up)
+		return (-1);
+
+	do {
+		r = &table->hostring[--n];
+		if (dstkey > r->ringkey)
+			break;
+	} while (n);
+	if (n == 0 && dstkey < r->ringkey)
+		r = &table->hostring[table->nhosts - 1];
+	return (r->host->idx);
+}
+
+void
+relay_hostring_update(struct table *table)
+{
+	struct host	 *host;
+	int		  nhosts = 0;
+
+	if (table->up == table->lastup)
+		return;
+
+	table->lastup = table->up;
+	bzero(&table->hostring, sizeof(table->hostring));
+	if (!table->up)
+		return;
+
+	TAILQ_FOREACH(host, &table->hosts, entry) {
+		if (host->up  != HOST_UP)
+			continue;
+		table->hostring[nhosts].ringkey = host->ringkey;
+		table->hostring[nhosts].host = host;
+		nhosts++;
+	}
+
+	if (nhosts)
+		qsort(table->hostring, nhosts, sizeof(struct host_ring),
+		      relay_hostring_cmp);
+	table->nhosts = nhosts;
+}
+
+u_int32_t
+relay_hostring_hash(u_int32_t a)
+{
+#if 0
+	a = (a ^ 61) ^ (a >> 16);
+	a = a + (a << 3);
+	a = a ^ (a >> 4);
+	a = a * 0x27d4eb2d;
+	a = a ^ (a >> 15);
+	a *= 3221225473U;
+#endif
+#if 1
+	a = (a+0x7ed55d16) + (a<<12);
+	a = (a^0xc761c23c) ^ (a>>19);
+	a = (a+0x165667b1) + (a<<5);
+	a = (a+0xd3a2646c) ^ (a<<9);
+	a = (a+0xfd7046c5) + (a<<3);
+	a = (a^0xb55a4f09) ^ (a>>16);
+	a *= 3221225473U;
+#endif
+#if 0
+	u_int32_t value = a;
+	value += (value << 10);
+	value ^= (value >> 6);
+	value += (value << 3);
+	value ^= (value >> 11);
+	value += (value << 15);
+	a = value * 3221225473U;
+#endif
+#if 0
+	a = hash32_buf(&a, sizeof(a), a) * 3221225473U;
+#endif
+	/* multiply by a large prime for better spreading */
+	return (a);
 }
 
 int

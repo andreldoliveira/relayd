@@ -732,6 +732,7 @@ tableopts	: CHECK tablecheck
 			switch ($2) {
 			case RELAY_DSTMODE_LOADBALANCE:
 			case RELAY_DSTMODE_HASH:
+			case RELAY_DSTMODE_HOSTRING:
 			case RELAY_DSTMODE_SRCHASH:
 			case RELAY_DSTMODE_RANDOM:
 				if (rdr != NULL) {
@@ -1740,6 +1741,7 @@ dstmode		: /* empty */		{ $$ = RELAY_DSTMODE_DEFAULT; }
 		| HASH			{ $$ = RELAY_DSTMODE_HASH; }
 		| LEASTSTATES		{ $$ = RELAY_DSTMODE_LEASTSTATES; }
 		| SRCHASH		{ $$ = RELAY_DSTMODE_SRCHASH; }
+		| HOSTRING		{ $$ = RELAY_DSTMODE_HOSTRING; }
 		| RANDOM		{ $$ = RELAY_DSTMODE_RANDOM; }
 		;
 
@@ -2098,6 +2100,7 @@ lookup(char *s)
 		{ "forward",		FORWARD },
 		{ "from",		FROM },
 		{ "hash",		HASH },
+		{ "hostring",		HOSTRING },
 		{ "header",		HEADER },
 		{ "host",		HOST },
 		{ "icmp",		ICMP },
