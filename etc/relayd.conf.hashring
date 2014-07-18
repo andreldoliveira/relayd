@@ -1,0 +1,23 @@
+www1=192.168.117.141
+www2=192.168.117.142
+www3=192.168.117.143
+www4=192.168.117.144
+www5=192.168.117.145
+www6=192.168.117.146
+
+table <phphosts> { $www1, $www2, $www3, $www4, $www5, $www6 }
+
+prefork 1
+log all
+
+http protocol "http_hashring" {
+	tcp no splice
+	match query hash "sessid"
+	match query log "sessid"
+}
+
+relay "hashring" {
+	listen on 192.168.117.131 port 8008
+	protocol "http_hashring"
+	forward to <phphosts> port 8080 mode hashring check tcp
+}
