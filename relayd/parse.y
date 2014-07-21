@@ -168,7 +168,7 @@ typedef struct {
 %token	SOCKET SPLICE SSL STICKYADDR STYLE TABLE TAG TAGGED TCP TIMEOUT TO
 %token	ROUTER RTLABEL TRANSPARENT TRAP UPDATES URL VIRTUAL WITH TTL RTABLE
 %token	MATCH PARAMS RANDOM LEASTSTATES SRCHASH KEY CERTIFICATE PASSWORD ECDH
-%token	EDH CURVE HASHRING
+%token	EDH CURVE CONSISTHASH
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.string>	hostname interface table value optstring
@@ -732,7 +732,7 @@ tableopts	: CHECK tablecheck
 			switch ($2) {
 			case RELAY_DSTMODE_LOADBALANCE:
 			case RELAY_DSTMODE_HASH:
-			case RELAY_DSTMODE_HASHRING:
+			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_SRCHASH:
 			case RELAY_DSTMODE_RANDOM:
 				if (rdr != NULL) {
@@ -1741,7 +1741,7 @@ dstmode		: /* empty */		{ $$ = RELAY_DSTMODE_DEFAULT; }
 		| HASH			{ $$ = RELAY_DSTMODE_HASH; }
 		| LEASTSTATES		{ $$ = RELAY_DSTMODE_LEASTSTATES; }
 		| SRCHASH		{ $$ = RELAY_DSTMODE_SRCHASH; }
-		| HASHRING		{ $$ = RELAY_DSTMODE_HASHRING; }
+		| CONSISTHASH		{ $$ = RELAY_DSTMODE_CONSISTHASH; }
 		| RANDOM		{ $$ = RELAY_DSTMODE_RANDOM; }
 		;
 
@@ -2086,6 +2086,7 @@ lookup(char *s)
 		{ "ciphers",		CIPHERS },
 		{ "code",		CODE },
 		{ "cookie",		COOKIE },
+		{ "consistent-hash",	CONSISTHASH },
 		{ "curve",		CURVE },
 		{ "demote",		DEMOTE },
 		{ "destination",	DESTINATION },
@@ -2100,7 +2101,6 @@ lookup(char *s)
 		{ "forward",		FORWARD },
 		{ "from",		FROM },
 		{ "hash",		HASH },
-		{ "hashring",		HASHRING },
 		{ "header",		HEADER },
 		{ "host",		HOST },
 		{ "icmp",		ICMP },

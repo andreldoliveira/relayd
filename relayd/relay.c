@@ -428,7 +428,7 @@ relay_launch(void)
 			rule_settable(&rlay->rl_proto->rules, rlt);
 
 			switch (rlt->rlt_mode) {
-			case RELAY_DSTMODE_HASHRING:
+			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_ROUNDROBIN:
 			case RELAY_DSTMODE_RANDOM:
 				rlt->rlt_key = 0;
@@ -451,7 +451,7 @@ relay_launch(void)
 				host->idx = rlt->rlt_nhosts;
 				rlt->rlt_host[rlt->rlt_nhosts++] = host;
 			}
-			if (rlt->rlt_mode == RELAY_DSTMODE_HASHRING &&
+			if (rlt->rlt_mode == RELAY_DSTMODE_CONSISTHASH &&
 			    rlt->rlt_nhosts > 0) {
 				TAILQ_FOREACH(host, &rlt->rlt_table->hosts,
 				    entry) {
@@ -459,6 +459,7 @@ relay_launch(void)
 					log_info("hashring host %s key 0x%08x",
 					    host->conf.name, host->ringkey);
 				}
+				rlt->rlt_table->conf.rlay_mode = rlt->rlt_mode;
 			}
 			log_info("adding %d hosts from table %s%s",
 			    rlt->rlt_nhosts, rlt->rlt_table->conf.name,
@@ -1246,7 +1247,7 @@ relay_from_table(struct rsession *con)
 	case RELAY_DSTMODE_RANDOM:
 		idx = (int)arc4random_uniform(rlt->rlt_nhosts);
 		break;
-	case RELAY_DSTMODE_HASHRING:
+	case RELAY_DSTMODE_CONSISTHASH:
 		p = relay_hashring_hash(p);
 		idx = relay_hashring_lookup(p, table);
 		break;
@@ -2711,6 +2712,9 @@ relay_hashring_update(struct table *table)
 {
 	struct host	*host;
 	int		 nhosts = 0;
+
+	if (table->conf.rlay_mode != RELAY_DSTMODE_CONSISTHASH)
+		return;
 
 	if (table->up == table->lastup)
 		return;

@@ -468,6 +468,7 @@ struct table_config {
 	char			 digest[41]; /* length of sha1 digest * 2 */
 	u_int8_t		 digest_type;
 	enum forwardmode	 fwdmode;
+	int			 rlay_mode;
 };
 
 struct table {
@@ -783,7 +784,7 @@ enum dstmode {
 	RELAY_DSTMODE_LOADBALANCE = 0,
 	RELAY_DSTMODE_ROUNDROBIN,
 	RELAY_DSTMODE_HASH,
-	RELAY_DSTMODE_HASHRING,
+	RELAY_DSTMODE_CONSISTHASH,
 	RELAY_DSTMODE_SRCHASH,
 	RELAY_DSTMODE_LEASTSTATES,
 	RELAY_DSTMODE_RANDOM

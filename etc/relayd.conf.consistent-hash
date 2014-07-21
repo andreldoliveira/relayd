@@ -33,5 +33,5 @@ http protocol "http_hashring" {
 relay "hashring" {
 	listen on 192.168.117.131 port 8008
 	protocol "http_hashring"
-	forward to <phphosts> port 8080 mode hashring check tcp
+	forward to <phphosts> port 8080 mode consistent-hash check tcp
 }
