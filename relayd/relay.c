@@ -87,7 +87,7 @@ void		 relay_ssl_readcb(int, short, void *);
 void		 relay_ssl_writecb(int, short, void *);
 
 char		*relay_load_file(const char *, off_t *);
-void		 relay_hashring_assign(struct host *, int, int);
+void		 relay_hashring_assign(struct host *);
 int		 relay_hashring_lookup(u_int32_t, struct table *);
 void		 relay_hashring_update(struct table *);
 u_int32_t	 relay_hashring_hash(u_int32_t);
@@ -413,7 +413,6 @@ relay_launch(void)
 	struct relay		*rlay;
 	struct host		*host;
 	struct relay_table	*rlt;
-	int			 idx;
 
 	TAILQ_FOREACH(rlay, env->sc_relays, rl_entry) {
 		if ((rlay->rl_conf.flags & (F_SSL|F_SSLCLIENT)) &&
@@ -429,6 +428,7 @@ relay_launch(void)
 			rule_settable(&rlay->rl_proto->rules, rlt);
 
 			switch (rlt->rlt_mode) {
+			case RELAY_DSTMODE_HASHRING:
 			case RELAY_DSTMODE_ROUNDROBIN:
 			case RELAY_DSTMODE_RANDOM:
 				rlt->rlt_key = 0;
@@ -442,9 +442,6 @@ relay_launch(void)
 				    hash32_str(rlt->rlt_table->conf.name,
 				    rlt->rlt_key);
 				break;
-			case RELAY_DSTMODE_HASHRING:
-				rlt->rlt_key = HASHINIT;
-				break;
 			}
 			rlt->rlt_nhosts = 0;
 			TAILQ_FOREACH(host, &rlt->rlt_table->hosts, entry) {
@@ -454,14 +451,12 @@ relay_launch(void)
 				host->idx = rlt->rlt_nhosts;
 				rlt->rlt_host[rlt->rlt_nhosts++] = host;
 			}
-			idx = 0;
 			if (rlt->rlt_mode == RELAY_DSTMODE_HASHRING &&
 			    rlt->rlt_nhosts > 0) {
 				TAILQ_FOREACH(host, &rlt->rlt_table->hosts,
 				    entry) {
-					relay_hashring_assign(host,
-					    rlt->rlt_nhosts, idx++);
-					log_info("host %s hashring key 0x%08x",
+					relay_hashring_assign(host);
+					log_info("hashring host %s key 0x%08x",
 					    host->conf.name, host->ringkey);
 				}
 			}
@@ -2742,22 +2737,17 @@ relay_hashring_update(struct table *table)
 }
 
 void
-relay_hashring_assign(struct host *h, int nhosts, int idx)
+relay_hashring_assign(struct host *h)
 {
-	h->ringkey = relay_hash_addr(&h->conf.ss, idx);
+	h->ringkey = hash32_buf(&h->idx, sizeof(h->idx), HASHINIT);
+	h->ringkey = relay_hash_addr(&h->conf.ss, h->ringkey);
 	h->ringkey = relay_hashring_hash(h->ringkey);
 }
 
 u_int32_t
 relay_hashring_hash(u_int32_t a)
 {
-	a = (a + 0x7ed55d16) + (a << 12);
-	a = (a ^ 0xc761c23c) ^ (a >> 19);
-	a = (a + 0x165667b1) + (a << 5);
-	a = (a + 0xd3a2646c) ^ (a << 9);
-	a = (a + 0xfd7046c5) + (a << 3);
-	a = (a ^ 0xb55a4f09) ^ (a >> 16);
-
+	a = hash32_buf(&a, sizeof(a), a);
 	return (a);
 }
 
