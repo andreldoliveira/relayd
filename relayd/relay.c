@@ -2720,7 +2720,7 @@ relay_hashring_update(struct table *table)
 		return;
 
 	table->lastup = table->up;
-	memset(&table->hostring, 0, sizeof(table->hostring));
+	memset(table->hostring, 0, sizeof(table->hostring));
 	if (!table->up)
 		return;
 
