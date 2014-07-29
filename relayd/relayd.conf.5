@@ -393,9 +393,13 @@ host from the specified table:
 .It Ic mode consistent-hash
 Balances the outgoing connections across the active hosts based on the hashed
 input from HTTP headers or GET variables. While consistent-hash will not fairly
-balance load accross all hosts, when a destination host is down, this algorithm
-tries to ensure that only those connections which would be directed to the
-downed host are re-distributed to the other hosts;
+balance load accross all hosts, it aims to keep connections  with a given
+attribute to destination hosts predictable, thus when a change in the host
+table happens, been it a host getting down or added to the table, this
+algorithm tries to ensure that only those connections which would be directed
+to the removed host are re-distributed to the other hosts, when a host is
+added, try to ensure that this host receives no more than UINT_MAX/number of
+hosts connections;
 see the
 .Sx PROTOCOLS
 section below.
