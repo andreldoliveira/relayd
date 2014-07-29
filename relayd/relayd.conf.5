@@ -390,6 +390,16 @@ This will override the global timeout, which is 200 milliseconds by default.
 The following options will set the scheduling algorithm to select a
 host from the specified table:
 .Bl -tag -width Ds
+.It Ic mode consistent-hash
+Balances the outgoing connections across the active hosts based on the hashed
+input from HTTP headers or GET variables. While consistent-hash will not fairly
+balance load accross all hosts, when a destination host is down, this algorithm
+tries to ensure that only those connections which would be directed to the
+downed host are re-distributed to the other hosts;
+see the
+.Sx PROTOCOLS
+section below.
+This mode is only supported by relays.
 .It Ic mode hash
 Balances the outgoing connections across the active hosts based on the
 hashed name of the relay, the hashed name of the table, and the IP
