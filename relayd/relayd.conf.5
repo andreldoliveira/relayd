@@ -392,16 +392,14 @@ host from the specified table:
 .Bl -tag -width Ds
 .It Ic mode consistent-hash
 Balances the outgoing connections across the active hosts based on the hashed
-name of the relay, the hashed name of the table, and the IP address and port of
-the relay.
-Additional input can be fed into the hash by looking at HTTP headers and GET
-variables;
+name of the relay, the hashed name of the table, and an additional input which
+can be fed into the hash by looking at HTTP headers and GET variables;
 see the
 .Sx PROTOCOLS
 section below.
-This algorithm tries to ensure that no more than UINT_MAX/(number of hosts)
-connections are re-distributed to destination hosts when a change in the hosts
-table happens been it a host going down or been added to the table.
+This algorithm tries to ensure that, when a change in the hosts table happens
+been it a host going down or been added to the table, only connections which
+should be directed to that host are re-distributed.
 This mode is only supported by relays.
 .It Ic mode hash
 Balances the outgoing connections across the active hosts based on the

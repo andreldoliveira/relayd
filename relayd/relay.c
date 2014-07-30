@@ -1254,16 +1254,15 @@ relay_from_table(struct rsession *con)
 		if (rlt->rlt_mode == RELAY_DSTMODE_SRCHASH)
 			break;
 		/* FALLTHROUGH */
-	case RELAY_DSTMODE_CONSISTHASH:
 	case RELAY_DSTMODE_HASH:
 		/* Local "destination" IP address and port */
 		p = relay_hash_addr(&rlay->rl_conf.ss, p);
 		p = hash32_buf(&rlay->rl_conf.port,
 		    sizeof(rlay->rl_conf.port), p);
-		if (rlt->rlt_mode == RELAY_DSTMODE_CONSISTHASH) {
-			p = relay_hashring_hash(p);
-			idx = relay_hashring_lookup(p, table);
-		}
+		break;
+	case RELAY_DSTMODE_CONSISTHASH:
+		p = relay_hashring_hash(p);
+		idx = relay_hashring_lookup(p, table);
 		break;
 	default:
 		fatalx("relay_from_table: unsupported mode");
