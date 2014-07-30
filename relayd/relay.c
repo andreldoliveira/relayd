@@ -2698,12 +2698,12 @@ relay_hashring_lookup(u_int32_t dstkey, struct table *table)
 		return (-1);
 
 	do {
-		r = &table->hostring[--n];
+		r = &table->host_ring[--n];
 		if (dstkey > r->ringkey)
 			break;
 	} while (n);
 	if (n == 0 && dstkey < r->ringkey)
-		r = &table->hostring[table->nhosts - 1];
+		r = &table->host_ring[table->nhosts - 1];
 
 	return (r->host->idx);
 }
@@ -2721,15 +2721,15 @@ relay_hashring_update(struct table *table)
 		return;
 
 	table->lastup = table->up;
-	memset(table->hostring, 0, sizeof(table->hostring));
+	memset(table->host_ring, 0, sizeof(table->host_ring));
 	if (!table->up)
 		return;
 
 	TAILQ_FOREACH(host, &table->hosts, entry) {
 		if (host->up != HOST_UP)
 			continue;
-		table->hostring[nhosts].host = host;
-		table->hostring[nhosts].ringkey = host->ringkey;
+		table->host_ring[nhosts].host = host;
+		table->host_ring[nhosts].ringkey = host->ringkey;
 		nhosts++;
 	}
 
@@ -2737,7 +2737,7 @@ relay_hashring_update(struct table *table)
 	if (!nhosts)
 		return;
 
-	qsort(table->hostring, nhosts, sizeof(struct host_ring),
+	qsort(table->host_ring, nhosts, sizeof(struct host_ring),
 	    relay_hashring_cmp);
 }
 

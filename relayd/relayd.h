@@ -56,7 +56,7 @@
 #define RELAY_MAX_SESSIONS	1024
 #define RELAY_TIMEOUT		600
 #define RELAY_CACHESIZE		-1	/* use default size */
-#define RELAY_NUMPROC		1
+#define RELAY_NUMPROC		3
 #define RELAY_MAXPROC		32
 #define RELAY_MAXHOSTS		32
 #define RELAY_MAXHEADERLENGTH	8192
@@ -477,7 +477,7 @@ struct table {
 	int			 up;
 	int			 skipped;
 	struct hostlist		 hosts;
-	struct host_ring	 hostring[RELAY_MAXHOSTS];
+	struct host_ring	 host_ring[RELAY_MAXHOSTS];
 	int			 nhosts;
 	int			 lastup;
 	SSL_CTX			*ssl_ctx;
