@@ -390,17 +390,15 @@ This will override the global timeout, which is 200 milliseconds by default.
 The following options will set the scheduling algorithm to select a
 host from the specified table:
 .Bl -tag -width Ds
-.It Xo
-.Ic mode consistent-hash
-.Op Ic key Ar key
+.It Ic mode consistent-hash
 Balances the outgoing connections across the active hosts based on the hashed
-input from HTTP headers or GET variables. This mode is not intended to be used
-to provide a balanced load to all hosts. It aims to keep connections to
-destination hosts predictable. Thus when a change in the hosts table happens,
-been it a host going down or been added to the table, this algorithm tries to
-ensure that only those connections which would be directed to the removed host
-are re-distributed to the other hosts, when a host is added tries to ensure
-that this host receives no more than UINT_MAX/(number of hosts) connections;
+name of the relay, the hashed name of the table, and the IP address and port of
+the relay.
+Additional input can be fed into the hash by looking at HTTP headers and GET
+variables.
+When a change in the hosts table happens been it a host going down or been
+added to the table, tries to ensure that no more than UINT_MAX/(number of
+hosts) connections are re-distributed between destination hosts;
 see the
 .Sx PROTOCOLS
 section below.

@@ -87,7 +87,7 @@ void		 relay_ssl_readcb(int, short, void *);
 void		 relay_ssl_writecb(int, short, void *);
 
 char		*relay_load_file(const char *, off_t *);
-void		 relay_hashring_assign(struct host *);
+void		 relay_hashring_assign(struct host *, struct relay_table *);
 int		 relay_hashring_lookup(u_int32_t, struct table *);
 void		 relay_hashring_update(struct table *);
 u_int32_t	 relay_hashring_hash(u_int32_t);
@@ -428,13 +428,13 @@ relay_launch(void)
 			rule_settable(&rlay->rl_proto->rules, rlt);
 
 			switch (rlt->rlt_mode) {
-			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_ROUNDROBIN:
 			case RELAY_DSTMODE_RANDOM:
 				rlt->rlt_key = 0;
 				break;
 			case RELAY_DSTMODE_LOADBALANCE:
 			case RELAY_DSTMODE_HASH:
+			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_SRCHASH:
 				rlt->rlt_key =
 				    hash32_str(rlay->rl_conf.name, HASHINIT);
@@ -455,7 +455,7 @@ relay_launch(void)
 			    rlt->rlt_nhosts > 0) {
 				TAILQ_FOREACH(host, &rlt->rlt_table->hosts,
 				    entry) {
-					relay_hashring_assign(host);
+					relay_hashring_assign(host, rlt);
 					log_info("hashring host %s key 0x%08x",
 					    host->conf.name, host->ringkey);
 				}
@@ -1247,10 +1247,6 @@ relay_from_table(struct rsession *con)
 	case RELAY_DSTMODE_RANDOM:
 		idx = (int)arc4random_uniform(rlt->rlt_nhosts);
 		break;
-	case RELAY_DSTMODE_CONSISTHASH:
-		p = relay_hashring_hash(p);
-		idx = relay_hashring_lookup(p, table);
-		break;
 	case RELAY_DSTMODE_SRCHASH:
 	case RELAY_DSTMODE_LOADBALANCE:
 		/* Source IP address without port */
@@ -1258,11 +1254,16 @@ relay_from_table(struct rsession *con)
 		if (rlt->rlt_mode == RELAY_DSTMODE_SRCHASH)
 			break;
 		/* FALLTHROUGH */
+	case RELAY_DSTMODE_CONSISTHASH:
 	case RELAY_DSTMODE_HASH:
 		/* Local "destination" IP address and port */
 		p = relay_hash_addr(&rlay->rl_conf.ss, p);
 		p = hash32_buf(&rlay->rl_conf.port,
 		    sizeof(rlay->rl_conf.port), p);
+		if (rlt->rlt_mode == RELAY_DSTMODE_CONSISTHASH) {
+			p = relay_hashring_hash(p);
+			idx = relay_hashring_lookup(p, table);
+		}
 		break;
 	default:
 		fatalx("relay_from_table: unsupported mode");
@@ -2741,9 +2742,9 @@ relay_hashring_update(struct table *table)
 }
 
 void
-relay_hashring_assign(struct host *h)
+relay_hashring_assign(struct host *h, struct relay_table *rlt)
 {
-	h->ringkey = hash32_buf(&h->idx, sizeof(h->idx), HASHINIT);
+	h->ringkey = hash32_buf(&h->idx, sizeof(h->idx), rlt->rlt_key);
 	h->ringkey = relay_hash_addr(&h->conf.ss, h->ringkey);
 	h->ringkey = relay_hashring_hash(h->ringkey);
 }
@@ -2751,6 +2752,10 @@ relay_hashring_assign(struct host *h)
 u_int32_t
 relay_hashring_hash(u_int32_t a)
 {
+	/*
+	 * relay_hashring_hash() is central entry point for a hash function of
+	 * choice
+	 */
 	a = hash32_buf(&a, sizeof(a), a);
 	return (a);
 }
