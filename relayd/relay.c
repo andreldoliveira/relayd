@@ -2688,21 +2688,39 @@ relay_hashring_cmp(const void *aa, const void *bb)
 }
 
 int
-relay_hashring_lookup(u_int32_t dstkey, struct table *table)
+relay_hashring_lookup(u_int32_t key, struct table *table)
 {
-	struct host_ring *r;
-	int		  n = table->nhosts;
+	struct host_ring	*r;
+	int			 n = table->nhosts;
 
 	if (!table->up)
 		return (-1);
 
 	do {
 		r = &table->host_ring[--n];
-		if (dstkey > r->ringkey)
+		if (key > r->ringkey)
 			break;
 	} while (n);
-	if (n == 0 && dstkey < r->ringkey)
-		r = &table->host_ring[table->nhosts - 1];
+	if (n == 0 && key < r->ringkey) {
+		/* 0 < key < ring[0].key */
+		n = table->nhosts - 1;
+		if ((table->host_ring[0].ringkey - key) <=
+		    ((UINT32_MAX - table->host_ring[n].ringkey) + key)) {
+			n = 0;
+		}
+	} else if (n == (table->nhosts - 1)) {
+		/* UINT32_MAX > key > ring[nhosts - 1].key */
+		if ((table->host_ring[0].ringkey + (UINT32_MAX - key)) <=
+		    (key - table->host_ring[n].ringkey)) {
+			n = 0;
+		}
+	} else {
+		if ((table->host_ring[n + 1].ringkey - key) <=
+		    (key - table->host_ring[n].ringkey)) {
+			n++;
+		}
+	}
+	r = &table->host_ring[n];
 
 	return (r->host->idx);
 }
