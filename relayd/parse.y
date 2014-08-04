@@ -115,6 +115,7 @@ static int		 tagged = 0;
 static int		 tag = 0;
 static in_port_t	 tableport = 0;
 static int		 dstmode;
+static u_int32_t	 dstmodekey = 0;
 static enum key_type	 keytype = KEY_TYPE_NONE;
 static enum direction	 dir = RELAY_DIR_ANY;
 static char		*rulefile = NULL;
@@ -629,6 +630,7 @@ tabledef	: TABLE table		{
 			TAILQ_INIT(&tb->hosts);
 			table = tb;
 			dstmode = RELAY_DSTMODE_DEFAULT;
+			dstmodekey = 0;
 		} tabledefopts_l	{
 			if (TAILQ_EMPTY(&table->hosts)) {
 				yyerror("table %s has no hosts",
@@ -673,6 +675,7 @@ tablespec	: table			{
 			free($1);
 			table = tb;
 			dstmode = RELAY_DSTMODE_DEFAULT;
+			dstmodekey = 0;
 		} tableopts_l		{
 			struct table	*tb;
 			if (table->conf.port == 0)
@@ -730,9 +733,11 @@ tableopts	: CHECK tablecheck
 		}
 		| MODE dstmode		{
 			switch ($2) {
+			case RELAY_DSTMODE_CONSISTHASH:
+				dstmodekey = 0;
+				/* FALLTHROUGH */
 			case RELAY_DSTMODE_LOADBALANCE:
 			case RELAY_DSTMODE_HASH:
-			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_SRCHASH:
 			case RELAY_DSTMODE_RANDOM:
 				if (rdr != NULL) {
@@ -753,6 +758,27 @@ tableopts	: CHECK tablecheck
 				dstmode = $2;
 				break;
 			}
+		}
+		| MODE dstmode KEY STRING {
+			char	*end;
+			if ($2 != RELAY_DSTMODE_CONSISTHASH) {
+				yyerror("mode does not requires a seed "
+				    "key");
+				free($4);
+				YYERROR;
+			}
+			if (!($4[0] == '0' && $4[1] == 'x')) {
+				yyerror("key must be an hex number");
+				free($4);
+				YYERROR;
+			}
+			dstmodekey = strtoul($4, &end, 16);
+			if (*end != '\0') {
+				yyerror("illegal key value %s", $4);
+				free($4);
+				YYERROR;
+			}
+			free($4);
 		}
 		;
 
@@ -1727,6 +1753,9 @@ forwardspec	: STRING port retry	{
 			rlt->rlt_table = $1;
 			rlt->rlt_table->conf.flags |= F_USED;
 			rlt->rlt_mode = dstmode;
+			if (dstmode == RELAY_DSTMODE_CONSISTHASH &&
+			    dstmodekey > 0)
+				rlt->rlt_key = dstmodekey;
 			rlt->rlt_flags = F_USED;
 			if (!TAILQ_EMPTY(&rlay->rl_tables))
 				rlt->rlt_flags |= F_BACKUP;
@@ -3114,6 +3143,7 @@ relay_inherit(struct relay *ra, struct relay *rb)
 		}
 		rtb->rlt_table = rta->rlt_table;
 		rtb->rlt_mode = rta->rlt_mode;
+		rtb->rlt_key = rta->rlt_key;
 		rtb->rlt_flags = rta->rlt_flags;
 
 		TAILQ_INSERT_TAIL(&rb->rl_tables, rtb, rlt_entry);
