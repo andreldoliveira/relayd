@@ -390,7 +390,7 @@ This will override the global timeout, which is 200 milliseconds by default.
 The following options will set the scheduling algorithm to select a
 host from the specified table:
 .Bl -tag -width Ds
-.It Ic mode consistent-hash
+.It Ic mode consistent-hash Oo Ar key Ic number Oc
 Balances the outgoing connections across the active hosts based on the hashed
 name of the relay, the hashed name of the table, and an additional input which
 can be fed into the hash by looking at HTTP headers and GET variables;
@@ -400,6 +400,10 @@ section below.
 This algorithm tries to ensure that, when a change in the hosts table happens
 been it a host going down or been added to the table, only connections which
 should be directed to that host are re-distributed.
+An optional
+.Ar key
+hex number can be specified to be used as input for generation of destination
+hosts hash keys.
 This mode is only supported by relays.
 .It Ic mode hash
 Balances the outgoing connections across the active hosts based on the
