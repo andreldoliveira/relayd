@@ -435,6 +435,8 @@ relay_launch(void)
 			case RELAY_DSTMODE_LOADBALANCE:
 			case RELAY_DSTMODE_HASH:
 			case RELAY_DSTMODE_CONSISTHASH:
+				rlt->rlt_table->conf.rlay_mode = rlt->rlt_mode;
+				/* FALLTHROUGH */
 			case RELAY_DSTMODE_SRCHASH:
 				rlt->rlt_key =
 				    hash32_str(rlay->rl_conf.name,
@@ -451,16 +453,9 @@ relay_launch(void)
 					    "too many hosts in table");
 				host->idx = rlt->rlt_nhosts;
 				rlt->rlt_host[rlt->rlt_nhosts++] = host;
-			}
-			if (rlt->rlt_mode == RELAY_DSTMODE_CONSISTHASH &&
-			    rlt->rlt_nhosts > 0) {
-				TAILQ_FOREACH(host, &rlt->rlt_table->hosts,
-				    entry) {
-					relay_hashring_assign(host, rlt);
-					log_info("hashring host %s key 0x%08x",
-					    host->conf.name, host->ringkey);
-				}
-				rlt->rlt_table->conf.rlay_mode = rlt->rlt_mode;
+				relay_hashring_assign(host, rlt);
+				log_info("hashring host %s key 0x%08x",
+					 host->conf.name, host->ringkey);
 			}
 			log_info("adding %d hosts from table %s%s",
 			    rlt->rlt_nhosts, rlt->rlt_table->conf.name,
