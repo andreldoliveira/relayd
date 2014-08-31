@@ -354,6 +354,8 @@ routers:
 	TAILQ_FOREACH(rt, env->sc_rts, rt_entry) {
 		imsg_compose_event(&c->iev, IMSG_CTL_ROUTER, 0, 0, -1,
 		    rt, sizeof(*rt));
+		if (rt->rt_conf.flags & F_DISABLE)
+			continue;
 
 		TAILQ_FOREACH(nr, &rt->rt_netroutes, nr_entry)
 			imsg_compose_event(&c->iev, IMSG_CTL_NETROUTE,
