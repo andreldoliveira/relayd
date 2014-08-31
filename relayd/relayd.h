@@ -1,4 +1,4 @@
-/*	$OpenBSD: relayd.h,v 1.189 2014/07/14 00:11:12 bluhm Exp $	*/
+/*	$OpenBSD: relayd.h,v 1.191 2014/08/29 09:03:36 blambert Exp $	*/
 
 /*
  * Copyright (c) 2006 - 2014 Reyk Floeter <reyk@openbsd.org>
@@ -402,8 +402,8 @@ struct host {
 TAILQ_HEAD(hostlist, host);
 
 struct host_ring {
-	struct host	*host;
-	u_int32_t	 ringkey;
+	struct host		*host;
+	u_int32_t		 ringkey;
 };
 
 enum host_error {
@@ -988,6 +988,7 @@ struct privsep {
 	struct event			 ps_evsigchld;
 	struct event			 ps_evsighup;
 	struct event			 ps_evsigpipe;
+	struct event			 ps_evsigusr1;
 
 	int				 ps_noaction;
 	struct passwd			*ps_pw;

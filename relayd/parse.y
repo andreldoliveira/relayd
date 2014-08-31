@@ -1,4 +1,4 @@
-/*	$OpenBSD: parse.y,v 1.187 2014/07/11 17:35:16 reyk Exp $	*/
+/*	$OpenBSD: parse.y,v 1.188 2014/08/29 09:03:36 blambert Exp $	*/
 
 /*
  * Copyright (c) 2007 - 2014 Reyk Floeter <reyk@openbsd.org>
@@ -178,7 +178,7 @@ typedef struct {
 %type	<v.number>	optssl optsslclient sslcache
 %type	<v.number>	redirect_proto relay_proto match
 %type	<v.number>	action ruleaf key_option
-%type	<v.number>	ssldhparams sslecdhcurve
+%type	<v.number>	ssldhparams sslecdhcurve hashseed
 %type	<v.port>	port
 %type	<v.host>	host
 %type	<v.addr>	address
@@ -729,7 +729,7 @@ tableopts	: CHECK tablecheck
 			table->conf.skip_cnt =
 			    ($2 / conf->sc_interval.tv_sec) - 1;
 		}
-		| MODE dstmode		{
+		| MODE dstmode hashseed	{
 			switch ($2) {
 			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_LOADBALANCE:
@@ -741,6 +741,7 @@ tableopts	: CHECK tablecheck
 					    "for redirections");
 					YYERROR;
 				}
+				table->conf.hash_seed = $3;
 				/* FALLTHROUGH */
 			case RELAY_DSTMODE_ROUNDROBIN:
 				dstmode = $2;
@@ -778,6 +779,9 @@ tableopts	: CHECK tablecheck
 			free($4);
 		}
 		;
+
+hashseed	: /* nothing */		{ $$ = hashseed; }
+		| SEED STRING		{ $$ = hash32_str($2, HASHINIT); }
 
 tablecheck	: ICMP			{ table->conf.check = CHECK_ICMP; }
 		| TCP			{ table->conf.check = CHECK_TCP; }
@@ -1750,8 +1754,8 @@ forwardspec	: STRING port retry	{
 			rlt->rlt_table = $1;
 			rlt->rlt_table->conf.flags |= F_USED;
 			rlt->rlt_mode = dstmode;
-			rlt->rlt_key = rlt->rlt_table->conf.hash_seed;
 			rlt->rlt_flags = F_USED;
+			rlt->rlt_key = rlt->rlt_table->conf.hash_seed;
 			if (!TAILQ_EMPTY(&rlay->rl_tables))
 				rlt->rlt_flags |= F_BACKUP;
 
@@ -1901,7 +1905,6 @@ routeoptsl	: ROUTE address '/' NUMBER {
 			}
 			free($2);
 		}
-		| DISABLE		{ rlay->rl_conf.flags |= F_DISABLE; }
 		| include
 		;
 
@@ -2177,6 +2180,7 @@ lookup(char *s)
 		{ "rtlabel",		RTLABEL },
 		{ "sack",		SACK },
 		{ "script",		SCRIPT },
+		{ "seed",		SEED },
 		{ "send",		SEND },
 		{ "session",		SESSION },
 		{ "set",		SET },
