@@ -436,9 +436,8 @@ relay_launch(void)
 			case RELAY_DSTMODE_HASH:
 			case RELAY_DSTMODE_CONSISTHASH:
 			case RELAY_DSTMODE_SRCHASH:
-				if (rlt->rlt_key == 0)
-					rlt->rlt_key = HASHINIT;
-				rlt->rlt_key = hash32_str(rlay->rl_conf.name,
+				rlt->rlt_key =
+				    hash32_str(rlay->rl_conf.name,
 				    rlt->rlt_key);
 				rlt->rlt_key =
 				    hash32_str(rlt->rlt_table->conf.name,

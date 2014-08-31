@@ -630,7 +630,6 @@ tabledef	: TABLE table		{
 			TAILQ_INIT(&tb->hosts);
 			table = tb;
 			dstmode = RELAY_DSTMODE_DEFAULT;
-			dstmodekey = 0;
 		} tabledefopts_l	{
 			if (TAILQ_EMPTY(&table->hosts)) {
 				yyerror("table %s has no hosts",
@@ -675,7 +674,6 @@ tablespec	: table			{
 			free($1);
 			table = tb;
 			dstmode = RELAY_DSTMODE_DEFAULT;
-			dstmodekey = 0;
 		} tableopts_l		{
 			struct table	*tb;
 			if (table->conf.port == 0)
@@ -734,8 +732,6 @@ tableopts	: CHECK tablecheck
 		| MODE dstmode		{
 			switch ($2) {
 			case RELAY_DSTMODE_CONSISTHASH:
-				dstmodekey = 0;
-				/* FALLTHROUGH */
 			case RELAY_DSTMODE_LOADBALANCE:
 			case RELAY_DSTMODE_HASH:
 			case RELAY_DSTMODE_SRCHASH:
@@ -1753,9 +1749,7 @@ forwardspec	: STRING port retry	{
 			rlt->rlt_table = $1;
 			rlt->rlt_table->conf.flags |= F_USED;
 			rlt->rlt_mode = dstmode;
-			if (dstmode == RELAY_DSTMODE_CONSISTHASH &&
-			    dstmodekey > 0)
-				rlt->rlt_key = dstmodekey;
+			rlt->rlt_key = dstmodekey;
 			rlt->rlt_flags = F_USED;
 			if (!TAILQ_EMPTY(&rlay->rl_tables))
 				rlt->rlt_flags |= F_BACKUP;
@@ -2575,6 +2569,9 @@ load_config(const char *filename, struct relayd *x_conf)
 
 	conf = x_conf;
 	conf->sc_flags = 0;
+
+	while (dstmodekey == 0)
+		dstmodekey = arc4random();
 
 	loadcfg = 1;
 	errors = 0;
