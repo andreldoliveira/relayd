@@ -469,6 +469,7 @@ struct table_config {
 	u_int8_t		 digest_type;
 	enum forwardmode	 fwdmode;
 	int			 rlay_mode;
+	u_int32_t		 hash_seed;
 };
 
 struct table {

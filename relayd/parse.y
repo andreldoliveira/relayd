@@ -115,7 +115,7 @@ static int		 tagged = 0;
 static int		 tag = 0;
 static in_port_t	 tableport = 0;
 static int		 dstmode;
-static u_int32_t	 dstmodekey = 0;
+static u_int32_t	 hashseed = 0;
 static enum key_type	 keytype = KEY_TYPE_NONE;
 static enum direction	 dir = RELAY_DIR_ANY;
 static char		*rulefile = NULL;
@@ -768,12 +768,13 @@ tableopts	: CHECK tablecheck
 				free($4);
 				YYERROR;
 			}
-			dstmodekey = strtoul($4, &end, 16);
+			hashseed = strtoul($4, &end, 16);
 			if (*end != '\0') {
 				yyerror("illegal key value %s", $4);
 				free($4);
 				YYERROR;
 			}
+			table->conf.hash_seed = hashseed;
 			free($4);
 		}
 		;
@@ -1749,7 +1750,7 @@ forwardspec	: STRING port retry	{
 			rlt->rlt_table = $1;
 			rlt->rlt_table->conf.flags |= F_USED;
 			rlt->rlt_mode = dstmode;
-			rlt->rlt_key = dstmodekey;
+			rlt->rlt_key = rlt->rlt_table->conf.hash_seed;
 			rlt->rlt_flags = F_USED;
 			if (!TAILQ_EMPTY(&rlay->rl_tables))
 				rlt->rlt_flags |= F_BACKUP;
@@ -2570,8 +2571,8 @@ load_config(const char *filename, struct relayd *x_conf)
 	conf = x_conf;
 	conf->sc_flags = 0;
 
-	while (dstmodekey == 0)
-		dstmodekey = arc4random();
+	while (hashseed == 0)
+		hashseed = arc4random();
 
 	loadcfg = 1;
 	errors = 0;
